@@ -1,0 +1,99 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      String   @default("student") // "admin", "teacher", "student"
+  createdAt DateTime @default(now())
+
+  accounts    Account[]
+  sessions    Session[]
+  courses     Course[] @relation("TeacherCourses") // Un professeur peut enseigner plusieurs cours
+  enrollments Enrollment[] // Un élève peut être inscrit à plusieurs cours
+  progress    Progress[]
+}
+
+model Account {
+  id                String  @id @default(uuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String  @unique
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Course {
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  instrument  String
+  teacherId   String
+  level       String
+  schedule    String
+  capacity    Int
+  createdAt   DateTime @default(now())
+
+  teacher     User   @relation(fields: [teacherId], references: [id], name: "TeacherCourses") // Relation avec User
+
+  enrollments Enrollment[] // Un cours peut avoir plusieurs élèves inscrits
+  progress    Progress[]
+}
+
+model Enrollment {
+  id             String   @id @default(uuid())
+  studentId      String
+  courseId       String
+  enrollmentDate DateTime @default(now())
+  status         String   @default("pending") // pending, confirmed, canceled
+
+  student User   @relation(fields: [studentId], references: [id])
+  course  Course @relation(fields: [courseId], references: [id])
+
+  @@unique([studentId, courseId]) // ✅ Empêche un élève de s'inscrire plusieurs fois
+}
+
+model Progress {
+  id         String   @id @default(uuid())
+  studentId  String
+  courseId   String
+  date       DateTime @default(now())
+  evaluation String
+  comments   String?
+
+  student User   @relation(fields: [studentId], references: [id])
+  course  Course @relation(fields: [courseId], references: [id])
+}

@@ -1,0 +1,100 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { enrollStudent } from "@/app/actions/enrollments"; // Action serveur
+import { useSession } from "next-auth/react";
+import type { Course, Enrollment } from "@prisma/client";
+
+export default function StudentCoursesPage() {
+  const { data: session } = useSession();
+
+  // ✅ États pour stocker les inscriptions et les cours
+  const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  // ✅ Récupérer les inscriptions et les cours disponibles
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        if (session?.user?.id) {
+          // 📌 Récupération des inscriptions
+          const resEnrollments = await fetch("/api/enrollments");
+          const dataEnrollments = await resEnrollments.json();
+          setEnrollments(dataEnrollments);
+
+          // 📌 Récupération des cours
+          const resCourses = await fetch("/api/courses");
+          const dataCourses = await resCourses.json();
+          setCourses(dataCourses);
+        }
+      } catch (error) {
+        console.error("Erreur lors de la récupération des données :", error);
+      }
+    };
+
+    fetchData();
+  }, [session]);
+
+  // ✅ Fonction pour s'inscrire à un cours
+  const handleEnroll = async (courseId: string) => {
+    if (!session?.user?.id) return;
+
+    try {
+      setLoading(true);
+      const newEnrollment = await enrollStudent(courseId, session.user.id);
+
+      // Mise à jour des inscriptions après succès
+      setEnrollments((prev) => [
+        ...prev,
+        { ...newEnrollment, courseId, status: "pending" },
+      ]);
+    } catch (error) {
+      console.error("Erreur d'inscription :", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="p-6">
+      <h1 className="text-2xl font-bold">Liste des Cours</h1>
+
+      {/* ✅ Affichage des inscriptions */}
+      <h2 className="text-xl font-bold mt-6">Mes Inscriptions</h2>
+      {enrollments.length === 0 ? (
+        <p>Aucune inscription trouvée.</p>
+      ) : (
+        <ul>
+          {enrollments.map((enrollment) => (
+            <li key={enrollment.id} className="mt-2 border p-2">
+              <h3 className="text-lg">Cours ID: {enrollment.courseId}</h3>
+              <p>Statut: {enrollment.status}</p>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {/* ✅ Affichage des cours disponibles */}
+      <h2 className="text-xl font-bold mt-6">Cours Disponibles</h2>
+      {courses.length === 0 ? (
+        <p>Aucun cours disponible pour le moment.</p>
+      ) : (
+        <ul>
+          {courses.map((course) => (
+            <li key={course.id} className="mt-2 border p-2">
+              <h3 className="text-lg">{course.title}</h3>
+              <button
+                onClick={() => handleEnroll(course.id)}
+                className="bg-green-500 text-white p-2 rounded"
+                disabled={loading}
+              >
+                {loading ? "Inscription..." : "S'inscrire"}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}

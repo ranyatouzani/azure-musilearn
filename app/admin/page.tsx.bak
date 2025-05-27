@@ -1,0 +1,12 @@
+import AuthGuard from "@/app/components/AuthGuard";
+
+export default function AdminDashboard() {
+  return (
+    <AuthGuard allowedRoles={["admin"]}>
+      <div className="p-6">
+        <h1 className="text-2xl font-bold">Tableau de bord Administrateur</h1>
+        <p>Bienvenue dans l&apos;interface d&apos;administration.</p>
+      </div>
+    </AuthGuard>
+  );
+}
